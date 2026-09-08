@@ -1,102 +1,106 @@
-// IndexedDB wrapper. Photos are stored as data URLs directly on the recipe
-// record — IndexedDB's quota is far larger than localStorage's, so this is
-// fine for a personal recipe collection.
-const DB_NAME = 'mealplanner';
-const DB_VERSION = 1;
-const WEEKPLAN_ID = 'current';
-const SHOPPING_LIST_ID = 'current';
+// Shared cloud storage via Firestore, replacing the old per-device IndexedDB
+// store so recipes / the meal plan / the shopping list sync between both
+// phones. Firestore's persistent local cache keeps the app working offline
+// the same way IndexedDB did — writes made offline queue locally and sync
+// once back online. The `DB` API below matches the old IndexedDB version so
+// the rest of the app didn't need to change.
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  writeBatch,
+} from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+import {
+  getAuth,
+  signInAnonymously,
+} from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { firebaseConfig, HOUSEHOLD_ID } from './firebase-config.js';
 
-let dbPromise = null;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const firestore = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 
-function openDB() {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('recipes')) {
-        db.createObjectStore('recipes', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('weekPlan')) {
-        db.createObjectStore('weekPlan', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('shoppingList')) {
-        db.createObjectStore('shoppingList', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('meta')) {
-        db.createObjectStore('meta', { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return dbPromise;
-}
+const authReady = signInAnonymously(auth).catch((err) => {
+  console.error('Firebase anonymous sign-in failed (offline on first-ever load?)', err);
+});
 
-function tx(storeName, mode) {
-  return openDB().then((db) => db.transaction(storeName, mode).objectStore(storeName));
-}
+const householdDoc = (...segments) => doc(firestore, 'households', HOUSEHOLD_ID, ...segments);
+const householdCollection = (name) => collection(firestore, 'households', HOUSEHOLD_ID, name);
 
-function reqToPromise(req) {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
+const WEEKPLAN_ID = 'weekPlan';
+const SHOPPING_LIST_ID = 'shoppingList';
 
 const DB = {
   async getAllRecipes() {
-    const store = await tx('recipes', 'readonly');
-    const all = await reqToPromise(store.getAll());
+    await authReady;
+    const snap = await getDocs(householdCollection('recipes'));
+    const all = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
     return all.sort((a, b) => a.name.localeCompare(b.name));
   },
 
   async getRecipe(id) {
-    const store = await tx('recipes', 'readonly');
-    return reqToPromise(store.get(id));
+    await authReady;
+    const snap = await getDoc(householdDoc('recipes', id));
+    return snap.exists() ? { ...snap.data(), id: snap.id } : null;
   },
 
   async putRecipe(recipe) {
-    const store = await tx('recipes', 'readwrite');
-    await reqToPromise(store.put(recipe));
+    await authReady;
+    await setDoc(householdDoc('recipes', recipe.id), recipe);
     return recipe;
   },
 
   async deleteRecipe(id) {
-    const store = await tx('recipes', 'readwrite');
-    await reqToPromise(store.delete(id));
+    await authReady;
+    await deleteDoc(householdDoc('recipes', id));
   },
 
   async getWeekPlan() {
-    const store = await tx('weekPlan', 'readonly');
-    const rec = await reqToPromise(store.get(WEEKPLAN_ID));
-    return rec || { id: WEEKPLAN_ID, selectedIds: [] };
+    await authReady;
+    const snap = await getDoc(householdDoc('state', WEEKPLAN_ID));
+    return snap.exists() ? snap.data() : { selectedIds: [] };
   },
 
   async putWeekPlan(plan) {
-    const store = await tx('weekPlan', 'readwrite');
-    await reqToPromise(store.put({ ...plan, id: WEEKPLAN_ID }));
+    await authReady;
+    await setDoc(householdDoc('state', WEEKPLAN_ID), plan);
   },
 
   async getShoppingList() {
-    const store = await tx('shoppingList', 'readonly');
-    const rec = await reqToPromise(store.get(SHOPPING_LIST_ID));
-    return rec || null;
+    await authReady;
+    const snap = await getDoc(householdDoc('state', SHOPPING_LIST_ID));
+    return snap.exists() ? snap.data() : null;
   },
 
   async putShoppingList(list) {
-    const store = await tx('shoppingList', 'readwrite');
-    await reqToPromise(store.put({ ...list, id: SHOPPING_LIST_ID }));
+    await authReady;
+    await setDoc(householdDoc('state', SHOPPING_LIST_ID), list);
   },
 
-  async getMeta(id) {
-    const store = await tx('meta', 'readonly');
-    return reqToPromise(store.get(id));
+  // Live updates so both phones see changes without a manual refresh.
+  // Callback fires once immediately with current data, then again on
+  // every remote (or local) change.
+  watchRecipes(callback) {
+    return onSnapshot(householdCollection('recipes'), (snap) => {
+      const all = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      callback(all.sort((a, b) => a.name.localeCompare(b.name)));
+    });
   },
 
-  async putMeta(rec) {
-    const store = await tx('meta', 'readwrite');
-    await reqToPromise(store.put(rec));
+  watchShoppingList(callback) {
+    return onSnapshot(householdDoc('state', SHOPPING_LIST_ID), (snap) => {
+      callback(snap.exists() ? snap.data() : null);
+    });
   },
 };
 
@@ -203,20 +207,22 @@ const SAMPLE_RECIPES = [
 ];
 
 async function seedIfEmpty() {
-  const seeded = await DB.getMeta('seeded');
-  if (seeded) return;
-  const existing = await DB.getAllRecipes();
-  if (existing.length === 0) {
-    for (const r of SAMPLE_RECIPES) {
-      await DB.putRecipe({
-        id: uuid(),
-        name: r.name,
-        photo: null,
-        ingredients: r.ingredients,
-        instructions: r.instructions,
-        createdAt: Date.now(),
-      });
-    }
+  await authReady;
+  const snap = await getDocs(householdCollection('recipes'));
+  if (!snap.empty) return;
+  const batch = writeBatch(firestore);
+  for (const r of SAMPLE_RECIPES) {
+    const id = uuid();
+    batch.set(householdDoc('recipes', id), {
+      id,
+      name: r.name,
+      photo: null,
+      ingredients: r.ingredients,
+      instructions: r.instructions,
+      createdAt: Date.now(),
+    });
   }
-  await DB.putMeta({ id: 'seeded', value: true });
+  await batch.commit();
 }
+
+export { DB, uuid, seedIfEmpty };

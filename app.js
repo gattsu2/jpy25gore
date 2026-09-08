@@ -1,3 +1,5 @@
+import { DB, uuid, seedIfEmpty } from './db.js';
+
 const viewEl = document.getElementById('view');
 const titleEl = document.getElementById('page-title');
 const backBtn = document.getElementById('back-btn');
@@ -636,8 +638,24 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ---------- Live sync ----------
+// Fires on every remote (or local) change to recipes / the shopping list.
+// Only re-render if the visible screen actually shows that data, so a
+// partner's edit elsewhere never interrupts typing on the recipe form or
+// the meal-picker.
+DB.watchRecipes(() => {
+  if (parseHash().view === 'home') render();
+});
+DB.watchShoppingList(() => {
+  if (parseHash().view === 'shopping') render();
+});
+
 // ---------- Init ----------
 (async function init() {
-  await seedIfEmpty();
+  try {
+    await seedIfEmpty();
+  } catch (err) {
+    console.error('Seeding sample recipes failed', err);
+  }
   render();
 })();

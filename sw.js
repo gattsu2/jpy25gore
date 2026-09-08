@@ -1,10 +1,11 @@
-const CACHE_NAME = 'mealplanner-v5';
+const CACHE_NAME = 'mealplanner-v6';
 const CORE_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './db.js',
   './app.js',
+  './firebase-config.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -39,7 +40,11 @@ self.addEventListener('fetch', (event) => {
 
       return fetch(event.request)
         .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
+          // 'basic' = same-origin; 'cors' = cross-origin resource that
+          // explicitly allowed itself to be read (e.g. the Firebase SDK
+          // files from gstatic.com) — cache both so those load offline
+          // after the first successful visit.
+          if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
