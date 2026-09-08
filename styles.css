@@ -107,12 +107,11 @@ button, input, textarea {
 
 .hero-logo {
   width: 100%;
-  max-width: 260px;
+  max-width: 320px;
   aspect-ratio: 1;
   object-fit: contain;
-  border-radius: 28px;
-  background: var(--ink);
   box-shadow: 0 8px 24px rgba(20, 20, 26, 0.25);
+  border-radius: 10%;
 }
 
 .section-heading {

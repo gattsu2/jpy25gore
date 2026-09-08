@@ -99,7 +99,7 @@ async function renderHome() {
 
   const heroHtml = `
     <div class="home-hero">
-      <img class="hero-logo" src="icons/icon-512.png" alt="Meal Planner">
+      <img class="hero-logo" src="icons/hero.jpg" alt="Meal Planner">
     </div>
   `;
 
