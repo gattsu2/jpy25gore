@@ -97,6 +97,12 @@ async function renderHome() {
   setHeader('Meal Planner', null);
   const [recipes, list] = await Promise.all([DB.getAllRecipes(), DB.getShoppingList()]);
 
+  const heroHtml = `
+    <div class="home-hero">
+      <img class="hero-logo" src="icons/icon-512.png" alt="Meal Planner">
+    </div>
+  `;
+
   const bannerHtml = (list && list.items.length)
     ? `<a href="#/shopping" class="list-banner">
          <span class="list-banner-icon" aria-hidden="true">🛒</span>
@@ -107,6 +113,8 @@ async function renderHome() {
 
   if (recipes.length === 0) {
     viewEl.innerHTML = `
+      ${heroHtml}
+      <h2 class="section-heading">Recipes</h2>
       ${bannerHtml}
       <div class="empty-state">
         <p>No recipes yet.</p>
@@ -116,6 +124,8 @@ async function renderHome() {
     `;
   } else {
     viewEl.innerHTML = `
+      ${heroHtml}
+      <h2 class="section-heading">Recipes</h2>
       ${bannerHtml}
       <button id="start-planning-btn" class="btn primary start-planning-btn">Start planning!</button>
       <div class="recipe-grid">

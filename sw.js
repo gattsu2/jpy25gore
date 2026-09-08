@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mealplanner-v2';
+const CACHE_NAME = 'mealplanner-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
