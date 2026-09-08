@@ -1,6 +1,7 @@
 const viewEl = document.getElementById('view');
 const titleEl = document.getElementById('page-title');
 const backBtn = document.getElementById('back-btn');
+const topbarEl = document.querySelector('.topbar');
 const toastEl = document.getElementById('toast');
 
 const MAX_MEALS = 20;
@@ -79,6 +80,9 @@ async function render() {
   const route = parseHash();
   viewEl.focus();
   bottomBar.hidden = true;
+  const isHome = route.view === 'home';
+  topbarEl.hidden = isHome;
+  viewEl.classList.toggle('no-topbar', isHome);
   try {
     if (route.view === 'home') return renderHome();
     if (route.view === 'recipe-form') return renderRecipeForm(route.id);

@@ -98,6 +98,10 @@ button, input, textarea {
   outline: none;
 }
 
+#view.no-topbar {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+}
+
 /* Home hero */
 .home-hero {
   display: flex;
