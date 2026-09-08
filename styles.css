@@ -43,16 +43,46 @@ button, input, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px;
   background: var(--teal-600);
   color: white;
   flex-shrink: 0;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.7rem;
+  line-height: 1;
+  padding: 0 2px 0 0;
+  margin: 0;
+  min-width: 24px;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: block;
+}
+
 .topbar h1 {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   margin: 0;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .install-btn {
@@ -72,38 +102,41 @@ button, input, textarea {
   outline: none;
 }
 
-.tabbar {
+/* Home banner + CTA */
+.list-banner {
   display: flex;
-  background: var(--card);
-  border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
-}
-
-.tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 8px 0 6px;
-  background: none;
-  border: none;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.list-banner-icon {
+  font-size: 1.2rem;
+}
+
+.list-banner-text {
+  flex: 1;
+  font-size: 0.88rem;
+}
+
+.list-banner-text strong {
+  color: var(--teal-700);
+}
+
+.list-banner .chev {
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  min-height: 52px;
-}
-
-.tab.active {
-  color: var(--teal-600);
-}
-
-.tab-icon {
   font-size: 1.3rem;
-  line-height: 1;
+}
+
+.start-planning-btn {
+  width: 100%;
+  margin-bottom: 16px;
 }
 
 /* Recipe grid */
@@ -160,7 +193,7 @@ button, input, textarea {
 .fab {
   position: fixed;
   right: 20px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -345,15 +378,15 @@ textarea {
   gap: 10px;
 }
 
-/* Week planner */
-.week-header {
+/* Plan (pick meals) */
+.plan-header {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   margin-bottom: 14px;
 }
 
-.week-count {
+.plan-count {
   font-weight: 700;
   font-size: 1.05rem;
 }
@@ -362,6 +395,18 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bottom-action-bar {
+  flex-shrink: 0;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+.btn.full-width {
+  width: 100%;
 }
 
 .pick-row {

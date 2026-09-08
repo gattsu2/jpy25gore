@@ -1,7 +1,9 @@
 const viewEl = document.getElementById('view');
 const titleEl = document.getElementById('page-title');
-const tabs = document.querySelectorAll('.tab');
+const backBtn = document.getElementById('back-btn');
 const toastEl = document.getElementById('toast');
+
+const MAX_MEALS = 20;
 
 const UNIT_ALIASES = {
   tsp: ['tsp', 'tsps', 'teaspoon', 'teaspoons'],
@@ -48,26 +50,39 @@ function showToast(msg) {
   }, 2200);
 }
 
+function setHeader(title, backHash) {
+  titleEl.textContent = title;
+  if (backHash) {
+    backBtn.hidden = false;
+    backBtn.onclick = () => { location.hash = backHash; };
+  } else {
+    backBtn.hidden = true;
+    backBtn.onclick = null;
+  }
+}
+
 // ---------- Routing ----------
 function parseHash() {
   const hash = location.hash.replace(/^#\/?/, '');
   const parts = hash.split('/').filter(Boolean);
-  if (parts.length === 0) return { view: 'recipes' };
+  if (parts.length === 0) return { view: 'home' };
   if (parts[0] === 'recipes' && parts[1] === 'new') return { view: 'recipe-form' };
   if (parts[0] === 'recipes' && parts[1]) return { view: 'recipe-form', id: parts[1] };
-  if (parts[0] === 'week') return { view: 'week' };
+  if (parts[0] === 'plan') return { view: 'plan' };
   if (parts[0] === 'shopping') return { view: 'shopping' };
-  return { view: 'recipes' };
+  return { view: 'home' };
 }
+
+const bottomBar = document.getElementById('bottom-bar');
 
 async function render() {
   const route = parseHash();
-  tabs.forEach((t) => t.classList.toggle('active', t.dataset.route === route.view.replace('recipe-form', 'recipes')));
   viewEl.focus();
+  bottomBar.hidden = true;
   try {
-    if (route.view === 'recipes') return renderRecipeList();
+    if (route.view === 'home') return renderHome();
     if (route.view === 'recipe-form') return renderRecipeForm(route.id);
-    if (route.view === 'week') return renderWeek();
+    if (route.view === 'plan') return renderPlan();
     if (route.view === 'shopping') return renderShopping();
   } catch (err) {
     console.error(err);
@@ -76,19 +91,23 @@ async function render() {
 }
 
 window.addEventListener('hashchange', render);
-tabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    location.hash = '#/' + tab.dataset.route;
-  });
-});
 
-// ---------- Recipe list ----------
-async function renderRecipeList() {
-  titleEl.textContent = 'Recipes';
-  const recipes = await DB.getAllRecipes();
+// ---------- Home (browse recipes) ----------
+async function renderHome() {
+  setHeader('Meal Planner', null);
+  const [recipes, list] = await Promise.all([DB.getAllRecipes(), DB.getShoppingList()]);
+
+  const bannerHtml = (list && list.items.length)
+    ? `<a href="#/shopping" class="list-banner">
+         <span class="list-banner-icon" aria-hidden="true">🛒</span>
+         <span class="list-banner-text">Shopping list <strong>${list.items.filter((i) => i.checked).length}/${list.items.length}</strong> checked</span>
+         <span class="chev" aria-hidden="true">›</span>
+       </a>`
+    : '';
 
   if (recipes.length === 0) {
     viewEl.innerHTML = `
+      ${bannerHtml}
       <div class="empty-state">
         <p>No recipes yet.</p>
         <p class="muted">Add your first recipe to get started.</p>
@@ -97,11 +116,16 @@ async function renderRecipeList() {
     `;
   } else {
     viewEl.innerHTML = `
+      ${bannerHtml}
+      <button id="start-planning-btn" class="btn primary start-planning-btn">Start planning!</button>
       <div class="recipe-grid">
         ${recipes.map(recipeCardHtml).join('')}
       </div>
       <button class="fab" id="add-recipe-fab" aria-label="Add recipe">+</button>
     `;
+    document.getElementById('start-planning-btn').addEventListener('click', () => {
+      location.hash = '#/plan';
+    });
   }
 
   document.getElementById('add-recipe-fab').addEventListener('click', () => {
@@ -135,10 +159,11 @@ async function renderRecipeForm(id) {
   const editing = Boolean(id);
   const recipe = editing ? await DB.getRecipe(id) : null;
   if (editing && !recipe) {
+    setHeader('Recipe', '#/');
     viewEl.innerHTML = `<div class="empty-state"><p>Recipe not found.</p></div>`;
     return;
   }
-  titleEl.textContent = editing ? 'Edit Recipe' : 'New Recipe';
+  setHeader(editing ? 'Edit Recipe' : 'New Recipe', '#/');
 
   viewEl.innerHTML = `
     <form id="recipe-form" class="form">
@@ -232,7 +257,7 @@ async function renderRecipeForm(id) {
   });
 
   document.getElementById('cancel-btn').addEventListener('click', () => {
-    location.hash = '#/recipes';
+    location.hash = '#/';
   });
 
   if (editing) {
@@ -245,7 +270,7 @@ async function renderRecipeForm(id) {
         await DB.putWeekPlan(plan);
       }
       showToast('Recipe deleted');
-      location.hash = '#/recipes';
+      location.hash = '#/';
     });
   }
 
@@ -274,8 +299,8 @@ async function renderRecipeForm(id) {
     };
     await DB.putRecipe(saved);
     showToast(editing ? 'Recipe updated' : 'Recipe added');
-    if (location.hash === '#/recipes') render();
-    else location.hash = '#/recipes';
+    if (location.hash === '#/' || location.hash === '') render();
+    else location.hash = '#/';
   });
 }
 
@@ -322,9 +347,9 @@ function compressImage(file, maxDim = 1000, quality = 0.82) {
   });
 }
 
-// ---------- Week planner ----------
-async function renderWeek() {
-  titleEl.textContent = 'This Week';
+// ---------- Plan (pick meals) ----------
+async function renderPlan() {
+  setHeader('Pick Your Meals', '#/');
   const [recipes, plan] = await Promise.all([DB.getAllRecipes(), DB.getWeekPlan()]);
   const validIds = new Set(recipes.map((r) => r.id));
   let selected = plan.selectedIds.filter((id) => validIds.has(id));
@@ -333,23 +358,33 @@ async function renderWeek() {
   }
 
   if (recipes.length === 0) {
-    viewEl.innerHTML = `<div class="empty-state"><p>You don't have any recipes yet.</p><p class="muted">Add some recipes first, then come back to plan your week.</p></div>`;
+    viewEl.innerHTML = `<div class="empty-state"><p>You don't have any recipes yet.</p><p class="muted">Add some recipes first, then come back to plan your meals.</p></div>`;
     return;
   }
 
   viewEl.innerHTML = `
-    <div class="week-header">
-      <div class="week-count"><span id="count-num">${selected.length}</span> / 7 selected</div>
-      <button id="generate-btn" class="btn primary" ${selected.length === 7 ? '' : 'disabled'}>Generate Shopping List</button>
+    <div class="plan-header">
+      <div class="plan-count"><span id="count-num">${selected.length}</span> <span id="count-label">${selected.length === 1 ? 'meal' : 'meals'} selected</span></div>
+      <p class="hint">Pick as many meals as you want (up to ${MAX_MEALS}) — a couple of nights out, or a full stretch with breakfasts too.</p>
     </div>
-    ${recipes.length < 7 ? `<p class="hint">You need at least 7 saved recipes to pick a full week. You have ${recipes.length}.</p>` : ''}
     <div class="pick-list">
       ${recipes.map((r) => pickRowHtml(r, selected.includes(r.id))).join('')}
     </div>
   `;
 
+  bottomBar.hidden = false;
   const countNum = document.getElementById('count-num');
-  const generateBtn = document.getElementById('generate-btn');
+  const countLabel = document.getElementById('count-label');
+  const decideBtn = document.getElementById('decide-btn');
+  decideBtn.disabled = selected.length === 0;
+  decideBtn.textContent = selected.length ? `Decided! (${selected.length})` : 'Decided!';
+
+  function updateDecideBtn() {
+    decideBtn.disabled = selected.length === 0;
+    decideBtn.textContent = selected.length ? `Decided! (${selected.length})` : 'Decided!';
+    countNum.textContent = selected.length;
+    countLabel.textContent = (selected.length === 1 ? 'meal' : 'meals') + ' selected';
+  }
 
   viewEl.querySelectorAll('.pick-row').forEach((row) => {
     row.addEventListener('click', async (e) => {
@@ -357,25 +392,24 @@ async function renderWeek() {
       const id = row.dataset.id;
       const checkbox = row.querySelector('input[type="checkbox"]');
       const isChecked = checkbox.checked;
-      if (!isChecked && selected.length >= 7) {
-        showToast('You can only pick 7 dinners. Unselect one first.');
+      if (!isChecked && selected.length >= MAX_MEALS) {
+        showToast(`You can plan up to ${MAX_MEALS} meals at a time.`);
         return;
       }
       checkbox.checked = !isChecked;
       row.classList.toggle('selected', checkbox.checked);
       selected = checkbox.checked ? [...selected, id] : selected.filter((x) => x !== id);
-      countNum.textContent = selected.length;
-      generateBtn.disabled = selected.length !== 7;
+      updateDecideBtn();
       await DB.putWeekPlan({ selectedIds: selected });
     });
   });
 
-  generateBtn.addEventListener('click', async () => {
-    if (selected.length !== 7) return;
+  decideBtn.onclick = async () => {
+    if (selected.length === 0) return;
     await generateShoppingList(selected);
     showToast('Shopping list ready');
     location.hash = '#/shopping';
-  });
+  };
 }
 
 function pickRowHtml(r, isSelected) {
@@ -484,15 +518,15 @@ async function generateShoppingList(recipeIds) {
 }
 
 async function renderShopping() {
-  titleEl.textContent = 'Shopping List';
+  setHeader('Shopping List', '#/');
   const list = await DB.getShoppingList();
 
   if (!list || list.items.length === 0) {
     viewEl.innerHTML = `
       <div class="empty-state">
         <p>No shopping list yet.</p>
-        <p class="muted">Pick 7 dinners for the week to generate one.</p>
-        <a class="btn primary" href="#/week">Plan This Week</a>
+        <p class="muted">Pick your meals to generate one.</p>
+        <a class="btn primary" href="#/plan">Start Planning</a>
       </div>
     `;
     return;
@@ -503,7 +537,7 @@ async function renderShopping() {
   viewEl.innerHTML = `
     <div class="shopping-header">
       <div class="week-menu">
-        <span class="muted">This week's dinners:</span>
+        <span class="muted">Meals in this list:</span>
         <div class="chip-row">
           ${list.sourceRecipeNames.map((n) => `<span class="chip">${escapeHtml(n)}</span>`).join('')}
         </div>
@@ -514,7 +548,7 @@ async function renderShopping() {
       ${list.items.map(shoppingItemHtml).join('')}
     </ul>
     <div class="form-actions">
-      <button id="regen-btn" class="btn secondary">Regenerate from This Week</button>
+      <button id="regen-btn" class="btn secondary">Regenerate from Selected Meals</button>
       <button id="reset-checks-btn" class="btn text">Uncheck All</button>
     </div>
   `;

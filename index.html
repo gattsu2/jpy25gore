@@ -18,26 +18,19 @@
 <body>
 <div id="app">
   <header class="topbar">
-    <h1 id="page-title">Recipes</h1>
+    <div class="topbar-left">
+      <button id="back-btn" class="back-btn" hidden aria-label="Back">‹</button>
+      <img class="logo" src="icons/icon-192.png" alt="">
+      <h1 id="page-title">Meal Planner</h1>
+    </div>
     <button id="install-btn" class="install-btn" hidden>Install app</button>
   </header>
 
   <main id="view" tabindex="-1"></main>
 
-  <nav class="tabbar">
-    <button class="tab" data-route="recipes">
-      <span class="tab-icon" aria-hidden="true">🍽️</span>
-      <span>Recipes</span>
-    </button>
-    <button class="tab" data-route="week">
-      <span class="tab-icon" aria-hidden="true">📅</span>
-      <span>This Week</span>
-    </button>
-    <button class="tab" data-route="shopping">
-      <span class="tab-icon" aria-hidden="true">🛒</span>
-      <span>Shopping</span>
-    </button>
-  </nav>
+  <div id="bottom-bar" class="bottom-action-bar" hidden>
+    <button id="decide-btn" class="btn primary full-width">Decided!</button>
+  </div>
 </div>
 
 <div id="toast" class="toast" hidden></div>
