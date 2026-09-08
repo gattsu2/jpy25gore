@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Meal Planner</title>
+<meta name="description" content="Plan your week's dinners and generate a shopping list, offline.">
+<meta name="theme-color" content="#0d9488">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Meal Planner">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <h1 id="page-title">Recipes</h1>
+    <button id="install-btn" class="install-btn" hidden>Install app</button>
+  </header>
+
+  <main id="view" tabindex="-1"></main>
+
+  <nav class="tabbar">
+    <button class="tab" data-route="recipes">
+      <span class="tab-icon" aria-hidden="true">🍽️</span>
+      <span>Recipes</span>
+    </button>
+    <button class="tab" data-route="week">
+      <span class="tab-icon" aria-hidden="true">📅</span>
+      <span>This Week</span>
+    </button>
+    <button class="tab" data-route="shopping">
+      <span class="tab-icon" aria-hidden="true">🛒</span>
+      <span>Shopping</span>
+    </button>
+  </nav>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
